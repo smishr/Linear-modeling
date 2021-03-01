@@ -135,7 +135,56 @@ dwtest(Ozone ~ Solar.R + Wind + Temp, data = na.omit(airquality))
 
 # 4.2 FINDING UNUSUAL OBSERVATIONS (p. 69) #####
 # ___.1 Leverage (p. 69) ####
+g <- lm(sr ~ pop15 + pop75 + dpi + ddpi, savings)
+
+# check the sum of influencers equals number of independent variables
+ginf <- influence(g)
+ginf$hat # produces a list of all influencers (Hi)
+sum(ginf$hat) 
+
+#Identify unusually large influencers using half-normal plot
+countries <- row.names(savings)
+halfnorm(influence(g)$hat, labs = countries, ylab = 'Leverages')
+
+gs <- summary(g)
+gs$sig # residual standard error
+
+# calculation of studentized residuals (only different from residuals when
+# inlfuencer leverage is large)
+stud <- residuals(g)/(gs$sig * sqrt(1 - ginf$hat)) 
+qqnorm(stud)
+abline(0, 1)
+
 # ___.2 Outliers (p. 71) ####
+# compute the jackknife residuals
+jack <- rstudent(g)
+jack [which.max(abs(jack))]
+
+# compute the Bonferroni critical value
+qt(p = 0.05/(50*2), df = 44) # where is the 2 coming from? for both tails?
+
+# example dataset with multiple outliers
+data(star)
+head(star)
+
+# note the relationship btwn light/temp, and the 4x outliers to the left
+plot(star$temp, star$light, xlab = "log(Temperature)",
+        ylab = "log(Light Intensity)")
+
+# fit a linear model - note effect of outliers
+ga <- lm(light ~ temp, star)
+abline(ga)
+
+# check for outliers - absolute values > 3.5 for simple regression
+# none found, example of testing difficulties for clustered outliers
+range(rstudent(ga))
+
+# fit and plot a model with the 4x points removed
+ga <- lm(light ~ temp, data = star, subset = (temp > 3.6))
+abline(ga, lty = 2)
+
+
+
 # ___.3 Influential observations (p. 75) ####
 # 4.3 CHECKING THE STRUCTURE OF THE MODEL (p. 78) #####
 # 4.4 EXERCISES (p. 80) #####

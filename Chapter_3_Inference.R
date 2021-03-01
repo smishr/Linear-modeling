@@ -134,7 +134,7 @@ summary(g)
 
 # ___.2 95% confidence intervals for pop75 ####
 # an example of CI where p > 0.05 (NB: null hypothesis, b = 0)
-qt(0.975, df = 45) # upper tail of t distribution, 95 %
+qt(p = 0.975, df = 45) # upper tail of t distribution, 95 %
 c(-1.69 - 2.01 * 1.08, -1.69 + 2.01 * 1.08)
 
 # derived from model estimates and standard errors
@@ -143,7 +143,7 @@ summary(g)$coefficients[3,1] + qt(0.975, 45) * summary(g)$coefficients[3,2]
 
 # ___.3 95% confidence intervals for ddpi ####
 # an example of CI where p < 0.05 (NB: null hypothesis, b != 0)
-qt(0.975, df = 45) # upper tail of t distribution, 95 %
+qt(p = 0.975, df = 45) # upper tail of t distribution, 95 %
 c(0.41 - 2.01 * 0.196, 0.41 + 2.01 * 0.196) # note the positive CI is 50x the negative CI
 
 # derived from model estimates and standard errors
@@ -154,11 +154,17 @@ summary(g)$coefficients[5,1] + qt(0.975, 45) * summary(g)$coefficients[5,2]
 confint(g)
 
 # ___.5 Joint confidence intervals ####
-plot(ellipse(g, c(2, 3)), type = "l", xlim = c(-1, 0)) # take linear model input directly, define the x, y axis
+
+# select predictors (2 = pop15, 3 = pop75, 4 = dpi, 5 = ddpi)
+confint(g)
+x <- 2
+y <- 3
+
+plot(ellipse(g, c(x, y)), type = "l", xlim = c(-4.5, 1), ylim = c(-4.5, 1)) # take linear model input directly, define the x, y axis
 points(0, 0) # add origin (nb; null hypothesis)
-points(coef(g)[2], coef(g)[3], pch = 18) # add coefficients
-abline(v = confint(g)[2,], lty = 2) # add pop15 CI
-abline(h = confint(g)[3,], lty = 2) # add pop75 CI
+points(coef(g)[x], coef(g)[y], pch = 18) # add coefficients
+abline(v = confint(g)[x,], lty = 2) # add pop15 CI
+abline(h = confint(g)[y,], lty = 2) # add pop75 CI
 
 # ___.6 Correlation of predictors and coefficients ####
 # correlation of the predictors
@@ -168,6 +174,69 @@ cor(savings$pop15, savings$pop75) # -0.91
 summary(g, corr = TRUE)$corr # 0.76, highly correlated predictors frequently leads to reversed coefficients
 
 # 3.5 CONFIDENCE INTERVALS FOR PREDICTIONS (p. 41) #####
+# ___.1 Predict the number of species for a new island with predictors ####
+head(gala)
+
+g <- lm(Species ~ Area + Elevation + Nearest + Scruz + Adjacent, gala)
+summary(g)
+
+x0 <- c(1, 0.08, 93, 6.0, 12.0, 0.34) # new predictors
+y0 <- sum(x0 * coef(g))
+y0 # 33.92 species expected on the new island
+
+# ___.2 Prediction of future mean response ####
+# 95% CI for all islands with the preceding predictors
+
+qt(0.975, 24) # 2.064; degrees of freedom = 24
+
+x <- model.matrix(g)
+x
+
+xtxi <- solve(t(x) %*% x)
+xtxi
+
+bm <- sqrt(x0 %*% xtxi %*% x0) * 2.064 * 60.98 # residual error = 60.98
+bm # 32.89
+
+# calculate the interval
+c(y0 - bm, y0 + bm)
+
+# ___.3 Prediction of future observations ####
+# 95% CI for a single new island with the preceding predictors
+bm <- sqrt(1 + x0 %*% xtxi %*% x0) * 2.064 * 60.98 # only differs in including mean
+bm # 130.09
+
+# calculate the interval
+c(y0 - bm, y0 + bm) # note that negative values exist
+
+# ___.4 Using the predict() function ####
+# present predictors in a data frame
+x0 <- data.frame(Area = 0.08, Elevation = 93, Nearest = 6.0,
+                 Scruz = 12, Adjacent = 0.34)
+
+str(predict(g, x0, se = TRUE))
+
+
+predict(g, x0, interval = "confidence")
+predict(g, x0, interval = "prediction")
+
+# ___.5 Consideration of quantitative extrapolation ####
+grid <- seq(0, 100, 1)
+
+# assemble a data frame of predictors where Nearest extends from 0 to 100
+p <- predict(g, data.frame(Area = 0.08, Elevation = 93, Nearest = grid,
+                           Scruz = 12, Adjacent = 0.34),
+             se = T,
+             interval="confidence")
+p
+
+# use matrix plot to plot grid sequence against fit, lower, and upper CI for all predictions
+matplot(grid, p$fit, lty = c(1,2,2), type = 'l', xlab = "Nearest",
+        ylab = "Species")
+
+# add a 'rug' of actual 'nearest island' distances from the data
+rug(gala$Nearest)
+
 # 3.6 DESIGNED EXPERIMENTS (p. 44) #####
 # 3.7 OBSERVATIONAL DATA (p. 48) #####
 # 3.8 PRACTICAL DIFFICULTIES (p. 53) #####
